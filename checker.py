@@ -9,6 +9,10 @@ from bs4 import BeautifulSoup
 PAGE_URL = "https://tcbonepiecechapters.com/mangas/5/one-piece"
 STATE_PATH = Path("state/latest.json")
 
+NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "").strip()
+NTFY_BASE_URL = os.environ.get("NTFY_BASE_URL", "https://ntfy.sh").rstrip("/")
+FORCE_TEST_NOTIFY = os.environ.get("FORCE_TEST_NOTIFY", "0") == "1"
+
 
 def fetch_latest_chapter():
     headers = {
@@ -46,7 +50,42 @@ def save_state(data):
         f.write("\n")
 
 
+def send_ntfy(title, message, click_url=None, priority="high", tags="bell"):
+    if not NTFY_TOPIC:
+        print("NTFY_TOPIC is not set. Skipping notification.")
+        return
+
+    url = f"{NTFY_BASE_URL}/{NTFY_TOPIC}"
+    headers = {
+        "Title": title,
+        "Priority": priority,
+        "Tags": tags,
+    }
+
+    if click_url:
+        headers["Click"] = click_url
+
+    response = requests.post(
+        url,
+        data=message.encode("utf-8"),
+        headers=headers,
+        timeout=20,
+    )
+    response.raise_for_status()
+    print("Notification sent.")
+
+
 def main():
+    if FORCE_TEST_NOTIFY:
+        send_ntfy(
+            title="One Piece watcher test",
+            message="If you got this, GitHub -> ntfy -> phone is working.",
+            click_url=PAGE_URL,
+            priority="default",
+            tags="test_tube",
+        )
+        return
+
     latest = fetch_latest_chapter()
     previous = load_state()
 
@@ -63,8 +102,14 @@ def main():
         print(f"Old: {previous.get('title')}")
         print(f"New: {latest['title']}")
 
-        # For now, just save the new state.
-        # In the next step, we will add phone notifications here.
+        send_ntfy(
+            title="New One Piece chapter",
+            message=f"{latest['title']}\n{latest['url']}",
+            click_url=latest["url"],
+            priority="high",
+            tags="book",
+        )
+
         save_state(latest)
     else:
         print("No new chapter.")
