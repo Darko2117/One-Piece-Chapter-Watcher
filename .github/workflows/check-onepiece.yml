@@ -28,7 +28,7 @@ jobs:
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           NTFY_BASE_URL: https://ntfy.sh
-          FORCE_TEST_NOTIFY: "1"
+          FORCE_TEST_NOTIFY: "0"
         run: python checker.py
 
       - name: Commit updated state if changed
